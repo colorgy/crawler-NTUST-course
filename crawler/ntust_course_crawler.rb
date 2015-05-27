@@ -8,7 +8,7 @@ require 'uri'
 require 'thread'
 require 'thwait'
 
-class Crawler
+class NtustCourseCrawler
   # 難得寫註解，總該碎碎念。
   attr_reader :semester_list, :courses_list, :query_url, :result_url
 
