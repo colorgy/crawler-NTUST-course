@@ -13,6 +13,10 @@ gem 'rest-client'
 gem 'nokogiri'
 gem 'iconv'
 
+# Database & ORM
+gem 'pg'
+gem 'activerecord'
+
 # Utilities
 gem 'pry'
 gem 'dotenv'

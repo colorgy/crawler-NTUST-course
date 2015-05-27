@@ -1,49 +1,34 @@
+require 'active_record'
 require_relative '../app.rb'
 require_relative './ntust_course_crawler.rb'
+
+class DataModel < ActiveRecord::Base
+  self.table_name = ENV['DATABASE_TABLE_NAME']
+  establish_connection ENV['DATABASE_URL']
+
+  def self.cols
+    @cols ||= DataModel.columns.map { |c| c.name.to_sym }
+  end
+end
 
 class CrawlWorker
   include Sidekiq::Worker
   include Sidekiq::Status::Worker
 
-  @@crawler = NtustCourseCrawler.new
+  @@crawler = NtustCourseCrawler.new(
+    progress_proc: proc { |p| App.work_1_progress = p }
+  )
 
   def perform
-    100.times do |i|
-      sleep 0.2
-      App.work_1_progress = i / 100.0
+    courses = @@crawler.courses(details: true, max_detail_count: 10_000)
+
+    DataModel.transaction do
+      courses.each do |course|
+        data = DataModel.first_or_create!(code: course[:code])
+        data.assign_attributes(course.slice(*DataModel.cols))
+        data.save!
+      end
     end
-
-    App.work_ended
-  end
-end
-
-class CrawlWorker2
-  include Sidekiq::Worker
-
-  def perform
-    50.times do |i|
-      sleep 0.2
-      App.work_2_progress = i / 50.0
-    end
-
-    # simulate errors
-    raise if [false, false, true].sample
-
-    App.work_ended
-  end
-end
-
-class CrawlWorker3
-  include Sidekiq::Worker
-
-  def perform
-    5.times do |i|
-      sleep 1
-      App.work_3_progress = i / 5.0
-    end
-
-    # simulate errors
-    raise if [false, false, true].sample
 
     App.work_ended
   end

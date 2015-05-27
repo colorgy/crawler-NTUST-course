@@ -64,12 +64,10 @@ class App < Sinatra::Application
 
   def start_job
     # Set the count of worker that should be started
-    worker_count = 3
+    worker_count = 1
 
     # Start the worker here
     CrawlWorker.perform_async
-    CrawlWorker2.perform_async
-    CrawlWorker3.perform_async
 
     AppRedis.redis.set('crawler:state', 'working')
     AppRedis.redis.set('crawler:started_at', Time.now)

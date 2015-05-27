@@ -35,11 +35,16 @@ class NtustCourseCrawler
   #
   # +term+::
   #   +Integer+ (學期) school term, 1 or 2, defaults to the current school term
-  def initialize(year: current_year, term: current_term)
+  #
+  # +progress_proc+::
+  #   +Proc+ a proc that can be called with an +float+ representing the current
+  #   progress while progressing
+  def initialize(year: current_year, term: current_term, progress_proc: nil)
     @query_url = "http://140.118.31.215/querycourse/ChCourseQuery/QueryCondition.aspx"
     @result_url = "http://140.118.31.215/querycourse/ChCourseQuery/QueryResult.aspx"
     @year = year
     @term = term
+    @progress_proc = progress_proc
   end
 
   # Getter of the courses data that the crawler is in charge to crawl, returns
@@ -58,6 +63,9 @@ class NtustCourseCrawler
     @courses = []
     # 我超神，我用多執行緒 http://i.imgur.com/aZqsVBQ.png
     @threads = []
+
+    # 重設進度
+    @progress_proc.call(0.0) if @progress_proc
 
     # 撈第一次資料，拿到 hidden 的表單驗證
     r = RestClient.get @query_url
@@ -222,6 +230,7 @@ class NtustCourseCrawler
 
           @courses_details_processed_count += 1
           puts "Got deatils (#{@courses_details_processed_count}/#{@courses_list_trs_count}): #{course_name}(#{course_code})"
+          @progress_proc.call(@courses_details_processed_count.to_f / @courses_list_trs_count.to_f) if @progress_proc
         end
       else
         # hash 化 course
