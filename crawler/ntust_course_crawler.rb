@@ -39,12 +39,13 @@ class NtustCourseCrawler
   # +progress_proc+::
   #   +Proc+ a proc that can be called with an +float+ representing the current
   #   progress while progressing
-  def initialize(year: current_year, term: current_term, progress_proc: nil)
+  def initialize(year: current_year, term: current_term, update_progress: nil, after_each: nil)
     @query_url = "http://140.118.31.215/querycourse/ChCourseQuery/QueryCondition.aspx"
     @result_url = "http://140.118.31.215/querycourse/ChCourseQuery/QueryResult.aspx"
     @year = year
     @term = term
-    @progress_proc = progress_proc
+    @update_progress_proc = update_progress
+    @after_each_proc = after_each
   end
 
   # Getter of the courses data that the crawler is in charge to crawl, returns
@@ -65,7 +66,7 @@ class NtustCourseCrawler
     @threads = []
 
     # 重設進度
-    @progress_proc.call(0.0) if @progress_proc
+    @update_progress_proc.call(progress: 0.0) if @update_progress_proc
 
     # 撈第一次資料，拿到 hidden 的表單驗證
     r = RestClient.get @query_url
@@ -192,7 +193,7 @@ class NtustCourseCrawler
           end
 
           # hash 化 course
-          @courses << {
+          course = {
             :name => course_name,
             :code => course_code,
             :year => @year,
@@ -235,15 +236,19 @@ class NtustCourseCrawler
             :website => course_website
           }
 
+          @courses << course
+
           @courses_details_processed_count += 1
           puts "Got deatils (#{@courses_details_processed_count}/#{@courses_list_trs_count}): #{course_name}(#{course_code})"
 
+          # callbacks
+          @after_each_proc.call(course: course) if @after_each_proc
           # update the progress
-          @progress_proc.call(@courses_details_processed_count.to_f / @courses_list_trs_count.to_f) if @progress_proc
+          @update_progress_proc.call(progress: @courses_details_processed_count.to_f / @courses_list_trs_count.to_f) if @update_progress_proc
         end
       else
         # hash 化 course
-        @courses << {
+        course = {
           :name => course_name,
           :code => course_code,
           :year => @year,
@@ -256,8 +261,12 @@ class NtustCourseCrawler
           :url => URI.encode(course_url)
         }
 
+        @courses << course
+
+        # callbacks
+        @after_each_proc.call(course: course) if @after_each_proc
         # update the progress
-        @progress_proc.call(@courses_details_processed_count.to_f / @courses_list_trs_count.to_f) if @progress_proc
+        @update_progress_proc.call(progress: @courses_details_processed_count.to_f / @courses_list_trs_count.to_f) if @update_progress_proc
       end
     end
 
