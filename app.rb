@@ -16,7 +16,7 @@ class App < Sinatra::Application
     error 401, JSON.pretty_generate(error: 'Unauthorized') and \
       return if ENV['API_KEY'] != params[:key]
 
-    start_job_if_idle
+    start_task_if_idle
 
     return 'start'
   end
@@ -27,10 +27,7 @@ class App < Sinatra::Application
     error 401, JSON.pretty_generate(error: 'Unauthorized') and \
       return if ENV['API_KEY'] != params[:key]
 
-    Sidekiq::Queue.new('default').clear
-    Sidekiq::Queue.new('retry').clear
-    Sidekiq::Queue.new('dead').clear
-    App.work_ended(all: true)
+    kill_task
 
     return 'kill'
   end
@@ -39,16 +36,16 @@ class App < Sinatra::Application
   # the work has done
   def self.work_ended(all: false)
     if all
-      AppRedis.redis.set('crawler:working_workers', 0)
+      AppRedis.redis.set('task:working_workers', 0)
     else
       # decrease the working workers count
-      AppRedis.redis.decr('crawler:working_workers')
+      AppRedis.redis.decr('task:working_workers')
     end
 
     # set the state to idle if all the works has been done
-    if AppRedis.redis.get('crawler:working_workers').to_i < 1
-      AppRedis.redis.set('crawler:state', 'idle')
-      AppRedis.redis.set('crawler:finished_at', Time.now)
+    if AppRedis.redis.get('task:working_workers').to_i < 1
+      AppRedis.redis.set('task:state', 'idle')
+      AppRedis.redis.set('task:finished_at', Time.now)
     end
   end
 
@@ -56,75 +53,123 @@ class App < Sinatra::Application
   # It can be used like this in the worker: +App.work_2_progress = 0.8+
   100.times do |i|
     define_singleton_method("work_#{i}_progress=") do |progress|
-      AppRedis.redis.set("crawler:worker_#{i}_progress", progress)
+      AppRedis.redis.set("task:worker_#{i}_progress", progress)
     end
   end
 
-  private
+  def self.start_task
+    kill_task
+    AppRedis.redis.set('task:state', 'working')
+    AppRedis.redis.set('task:started_at', Time.now)
 
-  def start_job
     # Set the count of worker that should be started
     worker_count = 1
 
     # Start the worker here
     CrawlWorker.perform_async
 
-    AppRedis.redis.set('crawler:state', 'working')
-    AppRedis.redis.set('crawler:started_at', Time.now)
-    AppRedis.redis.set('crawler:job_workers', worker_count)
-    AppRedis.redis.set('crawler:working_workers', worker_count)
+    AppRedis.redis.set('task:task_workers', worker_count)
+    AppRedis.redis.set('task:working_workers', worker_count)
 
     # Reset the progress of each worker
     worker_count.times do |i|
       i -= 1
-      AppRedis.redis.set("crawler:worker_#{i}_progress", 0)
+      AppRedis.redis.set("task:worker_#{i}_progress", 0)
     end
   end
 
-  def start_job_if_idle
-    return unless current_state == 'idle'
-    start_job
+  def start_task
+    App.start_task
   end
 
-  def try_to_parse_date_from_redis(key)
+  def self.start_task_if_idle
+    return unless current_state == 'idle'
+    start_task
+  end
+
+  def start_task_if_idle
+    App.start_task_if_idle
+  end
+
+  def self.kill_task
+    ps = Sidekiq::ProcessSet.new
+    ps.each do |p|
+      p.stop! if p['busy'] > 0
+    end
+    sleep(0.5)
+    Sidekiq::Queue.new.clear
+    Sidekiq::ScheduledSet.new.clear
+    Sidekiq::RetrySet.new.clear
+    App.work_ended(all: true)
+  end
+
+  def kill_task
+    App.kill_task
+  end
+
+  def self.try_to_parse_date_from_redis(key)
     Time.parse(AppRedis.redis.get(key))
   rescue
     nil
   end
 
-  def current_state
-    AppRedis.redis.get('crawler:state') || 'idle'
+  def try_to_parse_date_from_redis(key)
+    App.try_to_parse_date_from_redis(key)
   end
 
-  def current_job_progress
+  def self.current_state
+    AppRedis.redis.get('task:state') || 'idle'
+  end
+
+  def current_state
+    App.current_state
+  end
+
+  def self.current_task_progress
     return nil if current_state == 'idle'
-    job_workers = AppRedis.redis.get('crawler:job_workers').to_i
-    return nil unless job_workers
+    task_workers = AppRedis.redis.get('task:task_workers').to_i
+    return nil unless task_workers
     total_progress = 0.0
 
-    job_workers.times do |i|
+    task_workers.times do |i|
       i += 1
-      total_progress += AppRedis.redis.get("crawler:worker_#{i}_progress").to_f
+      total_progress += AppRedis.redis.get("task:worker_#{i}_progress").to_f
     end
 
-    total_progress / job_workers.to_f
+    total_progress / task_workers.to_f
   end
 
-  def current_job_started_at
-    try_to_parse_date_from_redis('crawler:started_at')
+  def current_task_progress
+    App.current_task_progress
   end
 
-  def current_job_finished_at
+  def self.current_task_started_at
+    try_to_parse_date_from_redis('task:started_at')
+  end
+
+  def current_task_started_at
+    App.current_task_started_at
+  end
+
+  def self.current_task_finished_at
     return nil if current_state != 'idle'
-    try_to_parse_date_from_redis('crawler:finished_at')
+    try_to_parse_date_from_redis('task:finished_at')
+  end
+
+  def current_task_finished_at
+    App.current_task_finished_at
+  end
+
+  def self.current_info
+    info = { state: current_state }
+    info[:task_progress] = current_task_progress if current_task_progress
+    info[:task_started_at] = current_task_started_at if current_task_started_at
+    info[:task_finished_at] = current_task_finished_at if current_task_finished_at
+
+    info
   end
 
   def current_info
-    info = { state: current_state }
-    info[:job_progress] = current_job_progress if current_job_progress
-    info[:job_started_at] = current_job_started_at if current_job_started_at
-    info[:job_finished_at] = current_job_finished_at if current_job_finished_at
-
-    info
+    App.current_info
   end
 end

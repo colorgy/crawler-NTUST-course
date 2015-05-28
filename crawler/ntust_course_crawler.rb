@@ -102,13 +102,17 @@ class NtustCourseCrawler
     # 然後再到結果頁看結果，記得送 cookie，因為有 session id
     puts "Loading courses list..."
     r = RestClient.get(@result_url, :cookies => @cookies)
+    puts "Got courses list, parsing..."
     @courses_list = Nokogiri::HTML(r.to_s)
     @courses_list_trs = @courses_list.css('table').last.css('tr')[1..-1]
     @courses_list_trs_count = @courses_list_trs.count
     @courses_details_processed_count = 0
+    puts "Starting to progress course..."
 
     # 跳過第一列，因為是 table header，何不用 th = =?
     @courses_list_trs.each_with_index do |row, index|
+      puts "Preparing course #{index + 1}/#{@courses_list_trs_count}..."
+
       # 每一欄
       table_data = row.css('td')
 
@@ -129,7 +133,10 @@ class NtustCourseCrawler
       if details && index < max_detail_count
         # 準備開啟新的 thread 來取得細節資料
         # 在這之前先確保 thread 數量在限制之內，若超過的話就等待
-        sleep(1) until (Thread.list.count < (ENV['MAX_THREADS'] || 20))
+        sleep(1) until (
+          @threads.delete_if { |t| !t.status };  # remove dead (ended) threads
+          @threads.count < (ENV['MAX_THREADS'] || 20)
+        )
 
         @threads << Thread.new do
           begin
@@ -230,6 +237,8 @@ class NtustCourseCrawler
 
           @courses_details_processed_count += 1
           puts "Got deatils (#{@courses_details_processed_count}/#{@courses_list_trs_count}): #{course_name}(#{course_code})"
+
+          # update the progress
           @progress_proc.call(@courses_details_processed_count.to_f / @courses_list_trs_count.to_f) if @progress_proc
         end
       else
@@ -246,6 +255,9 @@ class NtustCourseCrawler
           :students_enrolled => course_students_enrolled,
           :url => URI.encode(course_url)
         }
+
+        # update the progress
+        @progress_proc.call(@courses_details_processed_count.to_f / @courses_list_trs_count.to_f) if @progress_proc
       end
     end
 
