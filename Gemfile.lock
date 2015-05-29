@@ -58,8 +58,9 @@ GEM
     unf (0.1.4)
       unf_ext
     unf_ext (0.0.7.1)
-    web_task_runner (0.0.1)
+    web_task_runner (0.0.5)
       dotenv
+      redis-namespace
       sidekiq (~> 3.3.4)
       sidekiq-status
       sinatra (~> 1.4.6)
