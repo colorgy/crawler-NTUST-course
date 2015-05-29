@@ -58,17 +58,19 @@ GEM
     unf (0.1.4)
       unf_ext
     unf_ext (0.0.7.1)
+    web_task_runner (0.0.1)
+      dotenv
+      sidekiq (~> 3.3.4)
+      sidekiq-status
+      sinatra (~> 1.4.6)
+      thin
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
-  dotenv
   iconv
   nokogiri
   pry
   rest-client
-  sidekiq
-  sidekiq-status
-  sinatra
-  thin
+  web_task_runner

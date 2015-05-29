@@ -126,7 +126,7 @@ class NtustCourseCrawler
       course_credits = table_data[3].text.to_i
       course_required = (table_data[4].text == '選')
       course_full_semester = (table_data[5].text == '全')
-      course_instructor = table_data[6].text.strip
+      course_lecturer = table_data[6].text.strip
       course_time_location = table_data[7].text.split(' ')
       course_students_enrolled = table_data[10].text.to_i
       course_notes = table_data[11].text
@@ -198,7 +198,7 @@ class NtustCourseCrawler
             :code => course_code,
             :year => @year,
             :term => @term,
-            :instructor => course_instructor,
+            :lecturer => course_lecturer,
             :credits => course_credits,
             :required => course_required,
             :full_semester => course_full_semester,
@@ -253,7 +253,7 @@ class NtustCourseCrawler
           :code => course_code,
           :year => @year,
           :term => @term,
-          :instructor => course_instructor,
+          :lecturer => course_lecturer,
           :credits => course_credits,
           :required => course_required,
           :full_semester => course_full_semester,

@@ -1,12 +1,7 @@
 source 'https://rubygems.org'
 
-# Web framework and server
-gem 'sinatra'
-gem 'thin'
-
-# Job runner
-gem 'sidekiq'
-gem 'sidekiq-status'
+# Task runner
+gem 'web_task_runner'
 
 # Crawler dependencies
 gem 'rest-client'
@@ -15,4 +10,3 @@ gem 'iconv'
 
 # Utilities
 gem 'pry'
-gem 'dotenv'
