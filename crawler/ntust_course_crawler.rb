@@ -167,9 +167,15 @@ class NtustCourseCrawler
             course_periods = []
             course_locations = []
             course_time_location.each do |k, v|
+              k[1] = 11 if k[1] == 'A'
+              k[1] = 12 if k[1] == 'B'
+              k[1] = 13 if k[1] == 'C'
+              k[1] = 14 if k[1] == 'D'
+              k[1] = k[1].to_i
+              k[1] += 1 if year > 2014  # 台科自 104 學年度起增加第 0 節，為讓節次從 1 開始排列故全部 +1
               course_locations << v
               course_days << DAYS[k[0]]
-              course_periods << k[1].to_i
+              course_periods << k[1]
             end
 
             # 學年 / 課程宗旨 / 課程大綱 / 教科書 / 參考書目 / 修課學生須知 / 評量方式 / 備註說明
