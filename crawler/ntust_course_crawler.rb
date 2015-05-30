@@ -119,7 +119,8 @@ class NtustCourseCrawler
       table_data = row.css('td')
 
       # 分配欄位，多麼機械化！
-      course_code = table_data[0].text.strip
+      course_general_code = table_data[0].text.strip
+      course_code = "#{semester}-#{course_general_code}"
       course_name = table_data[1].text.strip
       # 跳過 '空白列'，覺得 buggy
       next if table_data[2].css('a').empty?
@@ -212,6 +213,7 @@ class NtustCourseCrawler
           course = {
             :name => course_name,
             :code => course_code,
+            :general_code => course_general_code,
             :year => @year,
             :term => @term,
             :lecturer => course_lecturer,
@@ -267,6 +269,7 @@ class NtustCourseCrawler
         course = {
           :name => course_name,
           :code => course_code,
+          :general_code => course_general_code,
           :year => @year,
           :term => @term,
           :lecturer => course_lecturer,
