@@ -6,6 +6,8 @@ Dir[File.dirname(__FILE__) + '/crawler/*.rb'].each { |file| require file }
 class CrawlWorker < WebTaskRunner::TaskWorker
   def exec
     crawler = NtustCourseCrawler.new(
+      year: 2015,
+      term: 1,
       update_progress: proc { |payload| WebTaskRunner.job_1_progress = payload[:progress] },
       after_each: proc do |payload|
         course = payload[:course]
