@@ -169,15 +169,16 @@ class NtustCourseCrawler
             course_periods = []
             course_locations = []
             course_time_location.each do |k, v|
-              k[1] = 11 if k[1] == 'A'
-              k[1] = 12 if k[1] == 'B'
-              k[1] = 13 if k[1] == 'C'
-              k[1] = 14 if k[1] == 'D'
-              k[1] = k[1].to_i
-              k[1] += 1 if year > 2014  # 台科自 104 學年度起增加第 0 節，為讓節次從 1 開始排列故全部 +1
               course_locations << v
               course_days << DAYS[k[0]]
-              course_periods << k[1]
+              period = k[1]
+              period = 11 if period == 'A'
+              period = 12 if period == 'B'
+              period = 13 if period == 'C'
+              period = 14 if period == 'D'
+              period = period.to_i
+              period += 1 if @year > 2014  # 台科自 104 學年度起增加第 0 節，為讓節次從 1 開始排列故全部 +1
+              course_periods << period
             end
 
             # 學年 / 課程宗旨 / 課程大綱 / 教科書 / 參考書目 / 修課學生須知 / 評量方式 / 備註說明
@@ -194,13 +195,14 @@ class NtustCourseCrawler
             course_name_en = detail_page.css('#lbl_engname').text
             course_prerequisites = detail_page.css('#lbl_precourse').text
             course_website = detail_page.css('#hlk_coursehttp').text
-          rescue
+          rescue => e
             if retries > 10
               @failures << course_code
               self.terminate!
             else
               retries += 1
               puts "Error occurred while processing details of #{course_name}(#{course_code})! retry later (#{retries}/10)..."
+              puts "Error message: #{e}"
               sleep((5..20).to_a.sample)
               redo
             end
