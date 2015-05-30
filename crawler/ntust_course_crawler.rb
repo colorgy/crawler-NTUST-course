@@ -62,6 +62,7 @@ class NtustCourseCrawler
   def courses(details: false, max_detail_count: 20_000)
     # 初始 courses 陣列
     @courses = []
+    @failures = []
     # 我超神，我用多執行緒 http://i.imgur.com/aZqsVBQ.png
     @threads = []
 
@@ -140,6 +141,7 @@ class NtustCourseCrawler
         )
 
         @threads << Thread.new do
+          retries ||= 0
           begin
             puts "Starting to get deatils (#{@courses_details_processed_count}/#{@courses_list_trs_count}): #{course_name}(#{course_code})"
             # 好，讓我們爬更深一層
@@ -193,9 +195,15 @@ class NtustCourseCrawler
             course_prerequisites = detail_page.css('#lbl_precourse').text
             course_website = detail_page.css('#hlk_coursehttp').text
           rescue
-            puts "Error occurred while processing details of #{course_name}(#{course_code})! retry later..."
-            sleep(1)
-            redo
+            if retries > 10
+              @failures << course_code
+              self.terminate!
+            else
+              retries += 1
+              puts "Error occurred while processing details of #{course_name}(#{course_code})! retry later (#{retries}/10)..."
+              sleep((5..20).to_a.sample)
+              redo
+            end
           end
 
           # hash 化 course
@@ -279,6 +287,8 @@ class NtustCourseCrawler
     # merge 所有的 threads
     ThreadsWait.all_waits(*@threads)
     puts "Done"
+
+    raise "Failure in #{@failures.join(', ')}" if @failures.count > 0
 
     # 回傳課程陣列
     @courses
