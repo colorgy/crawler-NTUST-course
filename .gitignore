@@ -1,2 +1,4 @@
 .env
 .DS_Store
+courses.json
+_courses.json
