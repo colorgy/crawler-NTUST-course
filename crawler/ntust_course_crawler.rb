@@ -23,6 +23,24 @@ class NtustCourseCrawler
     "R" => 4
   }
 
+  PERIODS = {
+    "0" =>  0,
+    "1" =>  1,
+    "2" =>  2,
+    "3" =>  3,
+    "4" =>  4,
+    "5" =>  5,
+    "6" =>  6,
+    "7" =>  7,
+    "8" =>  8,
+    "9" =>  9,
+    "10"=> 10,
+    "A" => 11,
+    "B" => 12,
+    "C" => 13,
+    "D" => 14,
+  }
+
   DEPS = {
     "AD" => "建築系",
     "CD" => "創意設計學士班",
@@ -207,13 +225,8 @@ class NtustCourseCrawler
             # table_detail = detail_page.css('.tblMain').last
 
             # 解析時間教室字串！一般來說長這樣：M6(IB-509) M7(IB-509)
-            course_time_location = {}
-            table_head.css('#lbl_timenode').text.split(' ').each_with_index do |raw_timenode|
-              course_time_location.merge!({
-                # { "M6" => "IB-509" } 的概念
-                "#{raw_timenode[0..1]}" => raw_timenode[2..-1].gsub(/[\(\)]/, '')
-              })
-            end
+            time_period_regex = /(?<period>[MFTSWUR][\dA-Z]+)(\((?<loc>.*?)\))?/
+            course_time_location = Hash[ table_head.css('#lbl_timenode').text.scan(time_period_regex) ]
 
             # 把 course_time_location 轉成資料庫可以儲存的格式
             course_days = []
@@ -222,12 +235,7 @@ class NtustCourseCrawler
             course_time_location.each do |k, v|
               course_locations << v
               course_days << DAYS[k[0]]
-              period = k[1]
-              period = 11 if period == 'A'
-              period = 12 if period == 'B'
-              period = 13 if period == 'C'
-              period = 14 if period == 'D'
-              period = period.to_i
+              period = PERIODS[k[1..-1]]
               period += 1 if @year > 2014  # 台科自 104 學年度起增加第 0 節，為讓節次從 1 開始排列故全部 +1
               course_periods << period
             end
@@ -314,7 +322,7 @@ class NtustCourseCrawler
           @after_each_proc.call(course: course) if @after_each_proc
           # update the progress
           @update_progress_proc.call(progress: @courses_details_processed_count.to_f / @courses_list_trs_count.to_f) if @update_progress_proc
-        end
+        end # end Thread
       else
         # hash 化 course
         course = {
@@ -361,3 +369,6 @@ class NtustCourseCrawler
     (Time.now.month.between?(2, 7) ? 2 : 1)
   end
 end
+
+# cc = NtustCourseCrawler.new(year: 2015, term: 1)
+# File.write('ntust_courses.json', JSON.pretty_generate(cc.courses(details: true)))
